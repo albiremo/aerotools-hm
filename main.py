@@ -13,7 +13,7 @@ from   numpy   import pi
 from geometry import *
 
 #main
-xv,yv=NACA('2312',100)
+xv,yv=NACA('21015',100)
 print(xv,yv)
 plt.figure()
 plt.plot(xv,yv,'-*')

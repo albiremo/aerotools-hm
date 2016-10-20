@@ -10,19 +10,59 @@ import matplotlib.pyplot as plt
 from   numpy   import pi
 #-----------------------------------------------------
 #-----------------------------------------------------
+#dictionary definition for NACA 5 digit
+
+def zero():
+    q=0.0580
+    k=361.4
+    return q,k
+def one():
+    q=0.1260
+    k=361.4
+    return q,k
+def two():
+    q=0.2025
+    k=51.64
+    return q,k
+def three():
+    q=0.2900
+    k=15.957
+    return(q,k)
+def four():
+    q=0.3910
+    k=3.230
+    return q,k
+#----------------------------------------------------
+#-------------------------------------------------
 def NACA4camberline(xc,mc,pos_mc):
     m=pos_mc/100
     p=pos_mc/10
+    yc=np.zeros([len(xc)])
+    Dyc=np.zeros([len(xc)])
     yc = ((m/(p**2))*(2*p-xc)*xc)*(xc<p)+((m/(1-p)**2)*(1- 2*p + (2*p-xc)*xc))*(xc>=p)
     Dyc = ((m/p**2)*2*(p-xc))*(xc<p)+((m/(1-p)**2) * 2*(p-xc))*(xc>=p)
     return yc,Dyc
 
-def NACA5camberline(xc,mc,pos_mc):
-    #TODO NACA 5 CAMBER LINE
+def NACA5camberline(xc,tipologia):
+    options={210: zero,
+    220: one,
+    230: two,
+    240: three,
+    250: four,}
+    try:
+        q,k=options[tipologia]()
+    except KeyError:
+        print('code not supported')
+    yc = np.zeros([len(xc)])
+    Dyc = np.zeros([len(xc)])
+    yc = ((k/6)*(xc**3-3*q*xc**2+q**2*(3-q)*xc))*(xc<q) +((k/6)*q**3*(1-xc))*(xc>=q)
+    Dyc = ((k/6)*(3*xc**2 -6*q*xc+ q**2*(3-q)*np.ones(len(xc))))*(xc<q)-((k/6)*np.ones(len(xc))*q**3)*(xc>=q)
+    return yc,Dyc
 
 def NACAthick(xc,SS,xtec):
     s=0.01*SS
     #classical NACA thickness
+    tk=np.zeros([len(xc)])
     tk = 5*s*(0.29690*np.sqrt(xc) -0.12600*xc -0.35160*xc**2 + 0.28430*xc**3 -0.10150*xc**4)
     # is possible to evaluate correction of this coefficients, due to the fact
     # that we need 0 thickness exit
@@ -59,10 +99,11 @@ def NACA(code,nc):
         return
     else:
         if nn==4:
+            #4 digit case
             A=list(code)
-            mc=np.float64(A[0])        #maximum camber
-            pos_mc=np.float64(A[1])     #position of maximum camber
-            SS=np.float64(A[2])*10+np.float64(A[3])
+            mc=np.int(A[0])        #maximum camber
+            pos_mc=np.int(A[1])     #position of maximum camber
+            SS=np.int(A[2])*10+np.int(A[3])
             print('max_camber:',mc,'pos_max_camber:',pos_mc,'max_thick:',SS)
             xtec=np.float64(1)
              #maximum thickness
@@ -71,9 +112,9 @@ def NACA(code,nc):
 
             #thickness construction
             tk=NACAthick(xc,SS,xtec)
-            print(xv[0:nc-1].shape,xv[nc:nv-1].shape)
+            #print(xv[0:nc-1].shape,xv[nc:nv-1].shape)
             theta=np.arctan(Dyc)
-            print(tk.shape, theta.shape,xc.shape,nv)
+            #print(tk.shape, theta.shape,xc.shape,nv)
             #xv=np.zeros([nv],np.float64)
             #yv=np.zeros([nv],np.float64)
             xv[0:nc-1]=xc[0:nc-1]-tk*np.sin(theta[0:nc-1])
@@ -82,14 +123,42 @@ def NACA(code,nc):
             yv[0:nc-1]=yv[nc-1:0:-1]
             xv[nc:nv-1]=xc[1:nc-1]+tk[1:nc-1]*np.sin(theta[1:nc-1])
             yv[nc:nv-1]=yc[1:nc-1]-tk[1:nc-1]*np.cos(theta[1:nc-1])
-            xvnew=np.zeros([nv-2],np.float64)
-            yvnew=np.zeros([nv-2],np.float64)
-            xvnew=xv[1:]
-            yvnew=yv[1:]
+            xvnew=np.zeros([nv-3],np.float64)
+            yvnew=np.zeros([nv-3],np.float64)
+            xvnew=xv[1:nv-1]
+            yvnew=yv[1:nv-1]
             with open("naca_airfoil.txt","w") as air:
                 for i in range(0,nv-2):
                     print(xvnew[i],yvnew[i], file=air, sep=' ')
             return(xvnew,yvnew)
         else:
-            #TODO NACA 5 DIGIT
+            #5 digit case
+            A=list(code)
+            tipologia=np.int(A[0])*100+np.int(A[1])*10+np.int(A[2])
+            SS=np.int(A[3])*10+np.int(A[4])
+            #camberline construction
+            yc,Dyc=NACA5camberline(xc,tipologia)
+            #thickness construction
+            xtec=1.0
+            tk=NACAthick(xc,SS,xtec)
+            #print(xv[0:nc-1].shape,xv[nc:nv-1].shape)
+            theta=np.arctan(Dyc)
+            #print(tk.shape, theta.shape,xc.shape,nv)
+            #xv=np.zeros([nv],np.float64)
+            #yv=np.zeros([nv],np.float64)
+            xv[0:nc-1]=xc[0:nc-1]-tk*np.sin(theta[0:nc-1])
+            yv[0:nc-1]=yc[0:nc-1]+tk*np.cos(theta[0:nc-1])
+            xv[0:nc-1]=xv[nc-1:0:-1]
+            yv[0:nc-1]=yv[nc-1:0:-1]
+            xv[nc:nv-1]=xc[1:nc-1]+tk[1:nc-1]*np.sin(theta[1:nc-1])
+            yv[nc:nv-1]=yc[1:nc-1]-tk[1:nc-1]*np.cos(theta[1:nc-1])
+            xvnew=np.zeros([nv-3],np.float64)
+            yvnew=np.zeros([nv-3],np.float64)
+            xvnew=xv[1:nv-1]
+            yvnew=yv[1:nv-1]
+            with open("naca_airfoil.txt","w") as air:
+                for i in range(0,nv-2):
+                    print(xvnew[i],yvnew[i], file=air, sep=' ')
+            return(xvnew,yvnew)
+
             return(yv)
